@@ -226,7 +226,11 @@ This command starts both the frontend and backend using npm workspaces.
 
 Frontend: https://your-frontend.vercel.app
 
-Backend API: https://your-backend.onrender.com
+Backend API: https://your-backend.onrender.
+
+> 🚧 Coming Soon
+>
+> The application is currently under development and will be deployed soon.
 ---
 
 # 🤝 Contributing
