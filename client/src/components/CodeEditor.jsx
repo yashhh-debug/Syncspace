@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import * as monaco from 'monaco-editor';
+import { Play, Save, Upload, ChevronDown } from 'lucide-react';
+import monaco from '../monacoSetup';
 import { MonacoBinding } from 'y-monaco';
 
 const LANGUAGES = [
@@ -13,7 +14,6 @@ const LANGUAGES = [
   { id: 'c', label: 'C', monaco: 'c', piston: 'c' },
 ];
 
-// Piston language versions (latest stable)
 const PISTON_VERSIONS = {
   javascript: '18.15.0',
   typescript: '5.0.3',
@@ -86,7 +86,7 @@ export default function CodeEditor({ doc, roomId }) {
     setOutput('⏳ Running...\n');
 
     try {
-      // Client-side JavaScript / TypeScript (instant)
+      // Client-side JavaScript / TypeScript
       if (language === 'javascript' || language === 'typescript') {
         const logs = [];
         const originalLog = console.log;
@@ -138,7 +138,6 @@ export default function CodeEditor({ doc, roomId }) {
 
       if (!result.trim()) result = '(no output)';
 
-      // Show exit code if non-zero
       if (data.run?.code !== 0 && data.run?.code !== undefined) {
         result += `\n\nProcess exited with code ${data.run.code}`;
       }
@@ -186,39 +185,73 @@ export default function CodeEditor({ doc, roomId }) {
         <span className="panel-badge">Monaco + Yjs</span>
       </div>
 
+      {/* Premium toolbar */}
       <div className="editor-toolbar">
-        <select
-          value={language}
-          onChange={(e) => setLanguage(e.target.value)}
-          className="lang-select"
-        >
-          {LANGUAGES.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.label}
-            </option>
-          ))}
-        </select>
+        <div className="relative">
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="lang-select"
+          >
+            {LANGUAGES.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <button className="btn-run" onClick={handleRun} disabled={isRunning}>
-          {isRunning ? 'Running…' : '▶ Run'}
-        </button>
-        <button className="btn-secondary" onClick={handleSave}>
-          💾 Save
-        </button>
+        <div style={{ flex: 1 }} />
+
         <button className="btn-secondary" onClick={handleLoad}>
-          📂 Load
+          <Upload size={14} style={{ marginRight: 6 }} />
+          Load
+        </button>
+
+        <button className="btn-secondary" onClick={handleSave}>
+          <Save size={14} style={{ marginRight: 6 }} />
+          Save
+        </button>
+
+        <button
+          className="btn-run"
+          onClick={handleRun}
+          disabled={isRunning}
+          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+        >
+          <Play size={14} fill="currentColor" />
+          {isRunning ? 'Running…' : 'Run'}
         </button>
       </div>
 
+      {/* Monaco */}
       <div
         ref={containerRef}
         className="editor-container"
         style={{ flex: 1, minHeight: 0 }}
       />
 
+      {/* VS-Code style Output Console */}
       <div className="output-panel">
-        <div className="output-header">Output</div>
-        <pre className="output-content">{output || '// output will appear here'}</pre>
+        <div className="output-header">
+          <span>Output</span>
+          <button
+            onClick={() => setOutput('')}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-secondary)',
+              fontSize: '0.7rem',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            Clear
+          </button>
+        </div>
+        <pre className="output-content">
+          {output || '// output will appear here'}
+        </pre>
       </div>
     </div>
   );
