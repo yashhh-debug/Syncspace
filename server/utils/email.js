@@ -1,14 +1,20 @@
+import dotenv from "dotenv";
 import nodemailer from "nodemailer";
+
+dotenv.config();
+
+const emailUser = process.env.EMAIL_USER || process.env.EMAIL;
+const emailPass = process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD;
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: emailUser,
+    pass: emailPass,
   },
 });
 
-transporter.verify(function (error, success) {
+transporter.verify(function (error) {
   if (error) {
     console.error("❌ Gmail Verify Error:", error);
   } else {
@@ -17,10 +23,14 @@ transporter.verify(function (error, success) {
 });
 
 export async function sendVerificationEmail(email, token) {
+  if (!emailUser || !emailPass) {
+    throw new Error("Gmail credentials are missing. Set EMAIL_USER/EMAIL_PASS or EMAIL/EMAIL_PASSWORD in server/.env.");
+  }
+
   const url = `${process.env.CLIENT_URL}/verify-email?token=${token}`;
 
   const info = await transporter.sendMail({
-    from: `"SyncSpace" <${process.env.EMAIL_USER}>`,
+    from: `"SyncSpace" <${emailUser}>`,
     to: email,
     subject: "Verify your SyncSpace account",
     html: `

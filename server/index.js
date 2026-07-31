@@ -23,8 +23,8 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-
-app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
+console.log(process.env.CLIENT_URL);
+app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
@@ -136,9 +136,10 @@ wss.on('connection', (conn, req) => {
 
 // Connect MongoDB + Start
 const PORT = process.env.PORT || 1234;
-
+const db = process.env.MONGO_URI;
+console.log(db);
 mongoose
-  .connect(process.env.MONGODB_URI)
+  .connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ MongoDB connected');
     server.listen(PORT, () => {
