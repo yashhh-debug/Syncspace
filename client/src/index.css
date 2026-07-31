@@ -43,6 +43,10 @@
   --font-display: 'Inter', system-ui, -apple-system, sans-serif;
   --font-body: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+  /* Sidebar */
+  --sidebar-width: 240px;
+  --sidebar-collapsed: 72px;
 }
 
 /* ========== Reset & Base ========== */
@@ -301,6 +305,9 @@ body {
   font-weight: 600;
   font-size: 0.8rem;
   border: 1px solid rgba(245, 158, 11, 0.2);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .room-info,
@@ -625,21 +632,7 @@ body {
   to { transform: rotate(360deg); }
 }
 
-/* ========== Dashboard ========== */
-.dashboard {
-  min-height: 100vh;
-  background: var(--bg);
-}
-
-.dashboard-content {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 36px 24px;
-  display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 24px;
-}
-
+/* ========== Profile / Cards (shared) ========== */
 .profile-card,
 .join-card,
 .heatmap-card {
@@ -659,7 +652,6 @@ body {
 }
 
 .profile-card {
-  grid-row: span 2;
   text-align: center;
 }
 
@@ -721,7 +713,7 @@ body {
 .join-card h3,
 .heatmap-card h3 {
   font-family: var(--font-display);
-  margin-bottom: 16px;
+  margin-bottom: 0;
   font-size: 1.1rem;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -741,11 +733,23 @@ body {
   color: var(--text);
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
+  font-family: inherit;
+  font-size: 0.9rem;
 }
 
 .join-form input:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.join-form .btn-primary {
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  white-space: nowrap;
+  margin-top: 0;
 }
 
 /* ========== Heatmap ========== */
@@ -794,20 +798,6 @@ body {
   background: var(--success);
 }
 
-/* ========== Responsive ========== */
-@media (max-width: 900px) {
-  .dashboard-content {
-    grid-template-columns: 1fr;
-  }
-  .main {
-    flex-direction: column;
-  }
-  .panel {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-}
-
 /* ========== Whiteboard layout ========== */
 .whiteboard-panel {
   display: flex;
@@ -817,7 +807,7 @@ body {
 }
 
 .canvas-container {
-  position: relative;   /* ← positioning context for the toolbar */
+  position: relative;
   flex: 1;
   width: 100%;
   min-height: 0;
@@ -828,9 +818,9 @@ body {
 /* ========== Floating toolbar – bottom center of whiteboard ========== */
 .floating-toolbar {
   position: absolute;
-  bottom: 28px;                 /* 24-32px from bottom edge */
+  bottom: 28px;
   left: 50%;
-  transform: translateX(-50%);  /* perfect horizontal center */
+  transform: translateX(-50%);
   z-index: 60;
 
   display: flex;
@@ -847,10 +837,9 @@ body {
 
   white-space: nowrap;
   width: fit-content;
-  max-width: calc(100% - 24px); /* never overflow the whiteboard */
+  max-width: calc(100% - 24px);
 }
 
-/* Keep all the .ft-* styles you already have (buttons, colors, slider, etc.) */
 .ft-group {
   display: flex;
   align-items: center;
@@ -932,6 +921,7 @@ body {
   min-width: 12px;
   text-align: center;
 }
+
 /* ========== Dashboard Shell ========== */
 .dashboard-shell {
   display: flex;
@@ -940,13 +930,24 @@ body {
   overflow: hidden;
 }
 
+/* ========== Sidebar ========== */
 .sidebar {
-  width: 240px;
-  min-width: 240px;
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
   background: #0C0C0E;
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+              min-width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 20;
+}
+
+.sidebar.collapsed {
+  width: var(--sidebar-collapsed);
+  min-width: var(--sidebar-collapsed);
 }
 
 .sidebar-logo {
@@ -959,6 +960,8 @@ body {
   font-weight: 700;
   font-size: 1.1rem;
   letter-spacing: -0.02em;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 .sidebar-logo-icon {
@@ -971,6 +974,50 @@ body {
   justify-content: center;
   font-size: 1.05rem;
   box-shadow: 0 0 18px var(--primary-glow);
+  flex-shrink: 0;
+}
+
+.sidebar-logo span {
+  white-space: nowrap;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar.collapsed .sidebar-logo {
+  padding: 0;
+  justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-logo span {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+}
+
+/* Toggle button */
+.sidebar-toggle {
+  position: absolute;
+  top: 18px;
+  right: -14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: #0C0C0E;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 30;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.sidebar-toggle:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
 }
 
 .sidebar-nav {
@@ -979,6 +1026,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .sidebar-item {
@@ -997,6 +1046,9 @@ body {
   cursor: pointer;
   transition: all 0.15s ease;
   text-align: left;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .sidebar-item:hover {
@@ -1007,6 +1059,23 @@ body {
 .sidebar-item.active {
   background: var(--card);
   color: var(--text);
+}
+
+.sidebar-item span {
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar.collapsed .sidebar-item {
+  justify-content: center;
+  padding: 11px;
+  gap: 0;
+}
+
+.sidebar.collapsed .sidebar-item span {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
 }
 
 .sidebar-indicator {
@@ -1021,9 +1090,14 @@ body {
   box-shadow: 0 0 10px var(--primary);
 }
 
+.sidebar.collapsed .sidebar-indicator {
+  display: none;
+}
+
 .sidebar-footer {
   padding: 12px;
   border-top: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .sidebar-item.logout:hover {
@@ -1038,6 +1112,7 @@ body {
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
+  transition: margin-left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dashboard-topbar {
@@ -1050,6 +1125,7 @@ body {
   padding: 0 32px;
   background: rgba(9, 9, 11, 0.75);
   backdrop-filter: blur(12px);
+  flex-shrink: 0;
 }
 
 .topbar-title {
@@ -1080,9 +1156,10 @@ body {
   justify-content: center;
   font-weight: 600;
   font-size: 0.9rem;
+  color: white;
 }
 
-/* Content */
+/* Content – single definition */
 .dashboard-content {
   flex: 1;
   overflow-y: auto;
@@ -1124,24 +1201,6 @@ body {
   flex-shrink: 0;
 }
 
-.join-form {
-  display: flex;
-  gap: 10px;
-}
-
-.join-form input {
-  flex: 1;
-}
-
-.join-form .btn-primary {
-  width: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-  white-space: nowrap;
-}
-
 /* Placeholder views for other nav items */
 .placeholder-view {
   grid-column: 1 / -1;
@@ -1165,7 +1224,58 @@ body {
   font-size: 0.95rem;
 }
 
-/* Responsive */
+/* ========== Quick Actions ========== */
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.quick-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  font-family: inherit;
+}
+
+.quick-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.quick-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.quick-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.quick-desc {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* ========== Responsive ========== */
 @media (max-width: 960px) {
   .sidebar {
     display: none;
@@ -1174,7 +1284,21 @@ body {
     grid-template-columns: 1fr;
     padding: 20px 16px;
   }
+  .main {
+    flex-direction: column;
+  }
+  .panel {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
 }
+
+@media (max-width: 700px) {
+  .quick-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 640px) {
   .header {
     padding: 0 12px;
@@ -1184,5 +1308,8 @@ body {
   }
   .dashboard-content {
     padding: 20px 16px;
+  }
+  .dashboard-topbar {
+    padding: 0 16px;
   }
 }
