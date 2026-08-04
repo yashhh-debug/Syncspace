@@ -1,19 +1,10 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import monacoEditorPlugin from 'vite-plugin-monaco-editor'
 
 export default defineConfig({
-  plugins: [react()],
-  server: {
-    port: 5173,
-  },
-
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          monaco: ['monaco-editor'],
-        },
-      },
-    },
-  },
-});
+  plugins: [
+    react(),
+    monacoEditorPlugin.default({}),   // ← notice .default
+  ],
+})
