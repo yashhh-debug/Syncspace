@@ -18,6 +18,7 @@ import * as map from 'lib0/map';
 import authRoutes from './routes/auth.js';
 import roomRoutes from './routes/rooms.js';
 import leaderboardRoutes from './routes/leaderboard.js';
+import sessionRoutes from './routes/sessions.js';
 
 dotenv.config();
 
@@ -30,6 +31,58 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/sessions', sessionRoutes);
+
+// Multi-language code execution proxy endpoint (Piston Engine)
+app.post('/api/execute', async (req, res) => {
+  try {
+    const { language, code, fileName, version } = req.body;
+    if (!code || !language) {
+      return res.status(400).json({ error: 'Language and code are required' });
+    }
+
+    // Default fallback versions if version is '*' or omitted
+    const versionMap = {
+      javascript: '18.15.0',
+      typescript: '5.0.3',
+      python: '3.10.0',
+      cpp: '10.2.0',
+      java: '15.0.2',
+      go: '1.16.2',
+      rust: '1.68.2',
+      c: '10.2.0',
+    };
+
+    const targetVersion = version && version !== '*' ? version : (versionMap[language] || '*');
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout limit
+
+    const response = await fetch('https://emkc.org/api/v2/piston/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        language,
+        version: targetVersion,
+        files: [{ name: fileName || 'main', content: code }],
+      }),
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errText = await response.text();
+      return res.status(response.status).json({ error: `Execution service error: ${errText}` });
+    }
+
+    const data = await response.json();
+    return res.json(data);
+  } catch (err) {
+    console.error('Execution API error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to execute code' });
+  }
+});
 
 // Health check
 app.get('/', (req, res) => res.send('SyncSpace Server Running'));
@@ -54,23 +107,20 @@ wss.on('connection', (conn, req) => {
 
   conn.binaryType = 'arraybuffer';
 
-  // send initial state
-  {
-    const encoder = encoding.createEncoder();
-    encoding.writeVarUint(encoder, messageSync);
-    syncProtocol.writeSyncStep1(encoder, doc);
-    conn.send(encoding.toUint8Array(encoder));
-  }
+  // send initial sync state
+  const syncEncoder = encoding.createEncoder();
+  encoding.writeVarUint(syncEncoder, messageSync);
+  syncProtocol.writeSyncStep1(syncEncoder, doc);
+  conn.send(encoding.toUint8Array(syncEncoder));
 
-  {
-    const encoder = encoding.createEncoder();
-    encoding.writeVarUint(encoder, messageAwareness);
-    encoding.writeVarUint8Array(
-      encoder,
-      awarenessProtocol.encodeAwarenessUpdate(awareness, Array.from(awareness.getStates().keys()))
-    );
-    conn.send(encoding.toUint8Array(encoder));
-  }
+  // send initial awareness state
+  const awarenessEncoder = encoding.createEncoder();
+  encoding.writeVarUint(awarenessEncoder, messageAwareness);
+  encoding.writeVarUint8Array(
+    awarenessEncoder,
+    awarenessProtocol.encodeAwarenessUpdate(awareness, Array.from(awareness.getStates().keys()))
+  );
+  conn.send(encoding.toUint8Array(awarenessEncoder));
 
   conn.on('message', (message) => {
     const decoder = decoding.createDecoder(new Uint8Array(message));

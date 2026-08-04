@@ -1,19 +1,21 @@
 import { useRef, useEffect, useState } from 'react';
-import { Stage, Layer, Line, Rect, Circle } from 'react-konva';
+import { Stage, Layer, Line, Rect, Circle, Text, Group } from 'react-konva';
 import Toolbar from './Toolbar';
 
-export default function Whiteboard({ doc }) {
+export default function Whiteboard({ doc, awareness, user }) {
   const [tool, setTool] = useState('pen');
   const [color, setColor] = useState('#38bdf8');
   const [strokeWidth, setStrokeWidth] = useState(3);
   const [lines, setLines] = useState([]);
   const [shapes, setShapes] = useState([]);
+  const [remoteCursors, setRemoteCursors] = useState([]);
   const isDrawing = useRef(false);
   const currentId = useRef(null);
 
   const yLines = doc.getArray('canvas-lines');
   const yShapes = doc.getArray('canvas-shapes');
 
+  // Sync canvas lines and shapes
   useEffect(() => {
     const updateLines = () => setLines(yLines.toArray());
     const updateShapes = () => setShapes(yShapes.toArray());
@@ -29,10 +31,54 @@ export default function Whiteboard({ doc }) {
     };
   }, [doc]);
 
+  // Sync multi-user Yjs awareness cursors
+  useEffect(() => {
+    if (!awareness) return;
+
+    const handleAwarenessChange = () => {
+      const states = awareness.getStates();
+      const cursors = [];
+      states.forEach((state, clientId) => {
+        if (clientId !== awareness.clientID && state.user && state.user.cursor) {
+          cursors.push({
+            id: clientId,
+            name: state.user.name || 'User',
+            color: state.user.color || '#38d6e8',
+            x: state.user.cursor.x,
+            y: state.user.cursor.y,
+          });
+        }
+      });
+      setRemoteCursors(cursors);
+    };
+
+    awareness.on('change', handleAwarenessChange);
+    handleAwarenessChange();
+
+    return () => {
+      awareness.off('change', handleAwarenessChange);
+    };
+  }, [awareness]);
+
+  const updateLocalCursor = (e) => {
+    if (!awareness || !user) return;
+    const stage = e.target.getStage();
+    const pos = stage ? stage.getPointerPosition() : null;
+    if (pos) {
+      awareness.setLocalStateField('user', {
+        name: user.name || 'Collaborator',
+        color: '#f2b84b',
+        cursor: { x: pos.x, y: pos.y },
+      });
+    }
+  };
+
   const handleMouseDown = (e) => {
     isDrawing.current = true;
     const pos = e.target.getStage().getPointerPosition();
     currentId.current = Date.now().toString() + Math.random();
+
+    updateLocalCursor(e);
 
     if (tool === 'pen' || tool === 'eraser') {
       const newLine = {
@@ -59,6 +105,8 @@ export default function Whiteboard({ doc }) {
   };
 
   const handleMouseMove = (e) => {
+    updateLocalCursor(e);
+
     if (!isDrawing.current) return;
     const pos = e.target.getStage().getPointerPosition();
 
@@ -83,9 +131,10 @@ export default function Whiteboard({ doc }) {
     }
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e) => {
     isDrawing.current = false;
     currentId.current = null;
+    updateLocalCursor(e);
   };
 
   const handleClear = () => {
@@ -164,6 +213,22 @@ export default function Whiteboard({ doc }) {
               }
               return null;
             })}
+
+            {/* Remote Awareness Cursors */}
+            {remoteCursors.map((c) => (
+              <Group key={c.id} x={c.x} y={c.y}>
+                <Circle radius={5} fill={c.color} />
+                <Text
+                  text={c.name}
+                  x={8}
+                  y={-6}
+                  fontSize={11}
+                  fill="#ffffff"
+                  padding={3}
+                  fontStyle="bold"
+                />
+              </Group>
+            ))}
           </Layer>
         </Stage>
       </div>

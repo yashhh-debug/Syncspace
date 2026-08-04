@@ -4,7 +4,7 @@ import { WebsocketProvider } from 'y-websocket';
 export function createYjsProvider(roomId) {
   const doc = new Y.Doc();
   const provider = new WebsocketProvider(
-    'ws://localhost:1234',
+    'ws://localhost:5000',
     roomId,
     doc,
     { connect: true }

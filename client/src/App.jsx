@@ -30,11 +30,12 @@ export default function App() {
 
       <Route
         path="/dashboard"
+
         element={
+
           <PrivateRoute>
             <Dashboard />
-          </PrivateRoute>
-        }
+          </PrivateRoute>}
       />
 
       <Route
@@ -46,7 +47,8 @@ export default function App() {
         }
       />
 
-      {/* Default redirect */}
+      {/* Root & Catch-All redirects */}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );

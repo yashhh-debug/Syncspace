@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const AuthContext = createContext();
 
-const API = 'http://localhost:1234/api/auth';
+const API = 'http://localhost:5000/api/auth';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -44,8 +44,37 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const recordActivity = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const res = await axios.post(
+        `${API}/activity`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data && res.data.activity) {
+        setUser((prev) =>
+          prev
+            ? {
+                ...prev,
+                activity: res.data.activity,
+                streak: res.data.streak,
+                maxStreak: res.data.maxStreak,
+                totalActiveDays: res.data.totalActiveDays,
+              }
+            : prev
+        );
+      }
+    } catch (err) {
+      console.error('Failed to record activity:', err);
+    }
+  };
+
+  console.log('AuthContext user:', user);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, setUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, setUser, recordActivity }}>
       {children}
     </AuthContext.Provider>
   );
