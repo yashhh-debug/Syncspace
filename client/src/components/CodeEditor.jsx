@@ -1,75 +1,32 @@
 import { useEffect, useRef, useState } from 'react';
 import * as monaco from 'monaco-editor';
+import { Play, Save, Upload, ChevronDown } from 'lucide-react';
 import 'monaco-editor/min/vs/editor/editor.main.css';
 import { MonacoBinding } from 'y-monaco';
 import { useTheme } from '../context/ThemeContext';
 
 const LANGUAGES = [
-  {
-    id: 'javascript',
-    label: 'JavaScript',
-    monaco: 'javascript',
-    piston: 'javascript',
-    fileName: 'main.js',
-    defaultCode: '// JavaScript\nconsole.log("Hello from SyncSpace!");\n\nfunction sum(a, b) {\n  return a + b;\n}\nconsole.log("Sum:", sum(5, 7));\n',
-  },
-  {
-    id: 'typescript',
-    label: 'TypeScript',
-    monaco: 'typescript',
-    piston: 'typescript',
-    fileName: 'main.ts',
-    defaultCode: '// TypeScript\nconst greeting: string = "Hello from SyncSpace!";\nconsole.log(greeting);\n\nfunction add(a: number, b: number): number {\n  return a + b;\n}\nconsole.log("Result:", add(10, 20));\n',
-  },
-  {
-    id: 'python',
-    label: 'Python 3',
-    monaco: 'python',
-    piston: 'python',
-    fileName: 'main.py',
-    defaultCode: '# Python 3\nprint("Hello from SyncSpace!")\n\ndef sum_nums(a, b):\n    return a + b\n\nprint("Sum:", sum_nums(15, 25))\n',
-  },
-  {
-    id: 'cpp',
-    label: 'C++',
-    monaco: 'cpp',
-    piston: 'cpp',
-    fileName: 'main.cpp',
-    defaultCode: '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello from SyncSpace C++!" << endl;\n    int a = 10, b = 20;\n    cout << "Sum: " << (a + b) << endl;\n    return 0;\n}\n',
-  },
-  {
-    id: 'java',
-    label: 'Java',
-    monaco: 'java',
-    piston: 'java',
-    fileName: 'Main.java',
-    defaultCode: 'public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello from SyncSpace Java!");\n        int sum = add(8, 12);\n        System.out.println("Sum: " + sum);\n    }\n\n    public static int add(int a, int b) {\n        return a + b;\n    }\n}\n',
-  },
-  {
-    id: 'go',
-    label: 'Go',
-    monaco: 'go',
-    piston: 'go',
-    fileName: 'main.go',
-    defaultCode: 'package main\nimport "fmt"\n\nfunc main() {\n    fmt.Println("Hello from SyncSpace Go!")\n    fmt.Println("Sum:", 40+2) \n}\n',
-  },
-  {
-    id: 'rust',
-    label: 'Rust',
-    monaco: 'rust',
-    piston: 'rust',
-    fileName: 'main.rs',
-    defaultCode: 'fn main() {\n    println!("Hello from SyncSpace Rust!");\n    let sum = 50 + 50;\n    println!("Sum: {}", sum);\n}\n',
-  },
-  {
-    id: 'c',
-    label: 'C',
-    monaco: 'c',
-    piston: 'c',
-    fileName: 'main.c',
-    defaultCode: '#include <stdio.h>\n\nint main() {\n    printf("Hello from SyncSpace C!\\n");\n    int a = 5, b = 15;\n    printf("Sum: %d\\n", a + b);\n    return 0;\n}\n',
-  },
+  { id: 'javascript', label: 'JavaScript', monaco: 'javascript', piston: 'javascript' },
+  { id: 'typescript', label: 'TypeScript', monaco: 'typescript', piston: 'typescript' },
+  { id: 'python', label: 'Python', monaco: 'python', piston: 'python' },
+  { id: 'cpp', label: 'C++', monaco: 'cpp', piston: 'cpp' },
+  { id: 'java', label: 'Java', monaco: 'java', piston: 'java' },
+  { id: 'go', label: 'Go', monaco: 'go', piston: 'go' },
+  { id: 'rust', label: 'Rust', monaco: 'rust', piston: 'rust' },
+  { id: 'c', label: 'C', monaco: 'c', piston: 'c' },
 ];
+
+// Piston language versions (latest stable)
+const PISTON_VERSIONS = {
+  javascript: '18.15.0',
+  typescript: '5.0.3',
+  python: '3.10.0',
+  cpp: '10.2.0',
+  java: '15.0.2',
+  go: '1.16.2',
+  rust: '1.68.2',
+  c: '10.2.0',
+};
 
 export default function CodeEditor({ doc, roomId }) {
   const containerRef = useRef(null);
@@ -164,8 +121,8 @@ export default function CodeEditor({ doc, roomId }) {
     setOutput(`⏳ Compiling & Running ${currentLangObj.label}...\n`);
 
     try {
-      // 1. Client-Side Instant Run for pure JavaScript (no TypeScript types)
-      if (language === 'javascript') {
+      // Client-side JavaScript / TypeScript (instant)
+      if (language === 'javascript' || language === 'typescript') {
         const logs = [];
         const originalLog = console.log;
         const originalError = console.error;
@@ -243,12 +200,11 @@ export default function CodeEditor({ doc, roomId }) {
         result += (result ? '\n' : '') + '❌ Runtime Error:\n' + data.run.stderr;
       }
 
-      if (!result.trim()) {
-        result = '(code executed with no output)';
-      }
+      if (!result.trim()) result = '(no output)';
 
-      if (data.run?.code !== undefined && data.run?.code !== 0) {
-        result += `\n\n[Process exited with return code ${data.run.code}]`;
+      // Show exit code if non-zero
+      if (data.run?.code !== 0 && data.run?.code !== undefined) {
+        result += `\n\nProcess exited with code ${data.run.code}`;
       }
 
       setOutput(result);
@@ -294,10 +250,11 @@ export default function CodeEditor({ doc, roomId }) {
         <span className="panel-badge">Monaco Multi-Lang</span>
       </div>
 
+      {/* Premium toolbar */}
       <div className="editor-toolbar">
         <select
           value={language}
-          onChange={(e) => handleLanguageChange(e.target.value)}
+          onChange={(e) => setLanguage(e.target.value)}
           className="lang-select"
         >
           {LANGUAGES.map((l) => (
@@ -307,29 +264,37 @@ export default function CodeEditor({ doc, roomId }) {
           ))}
         </select>
 
-        <button className="btn-run" onClick={handleRun} disabled={isRunning}>
-          {isRunning ? 'Running…' : '▶ Run'}
-        </button>
-        <button className="btn-secondary" onClick={handleLoadTemplate} title="Insert boilerplate code for selected language">
-          📜 Template
+        <button className="btn-secondary" onClick={handleLoad}>
+          <Upload size={14} style={{ marginRight: 6 }} />
+          Load
         </button>
         <button className="btn-secondary" onClick={handleSave}>
-          💾 Save
+          <Save size={14} style={{ marginRight: 6 }} />
+          Save
         </button>
-        <button className="btn-secondary" onClick={handleLoad}>
-          📂 Load
+
+        <button
+          className="btn-run"
+          onClick={handleRun}
+          disabled={isRunning}
+          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+        >
+          <Play size={14} fill="currentColor" />
+          {isRunning ? 'Running…' : 'Run'}
         </button>
       </div>
 
+      {/* Monaco */}
       <div
         ref={containerRef}
         className="editor-container"
         style={{ flex: 1, minHeight: 0 }}
       />
 
+      {/* VS-Code style Output Console */}
       <div className="output-panel">
-        <div className="output-header">Console Output ({LANGUAGES.find(l => l.id === language)?.label})</div>
-        <pre className="output-content">{output || '// Output will appear here after clicking ▶ Run'}</pre>
+        <div className="output-header">Output</div>
+        <pre className="output-content">{output || '// output will appear here'}</pre>
       </div>
     </div>
   );

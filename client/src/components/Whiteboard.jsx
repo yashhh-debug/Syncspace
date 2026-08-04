@@ -9,13 +9,39 @@ export default function Whiteboard({ doc, awareness, user }) {
   const [lines, setLines] = useState([]);
   const [shapes, setShapes] = useState([]);
   const [remoteCursors, setRemoteCursors] = useState([]);
+  const [size, setSize] = useState({ width: 600, height: 500 });
+
   const isDrawing = useRef(false);
   const currentId = useRef(null);
+  const containerRef = useRef(null);
 
   const yLines = doc.getArray('canvas-lines');
   const yShapes = doc.getArray('canvas-shapes');
 
-  // Sync canvas lines and shapes
+  // Responsive Stage size
+  useEffect(() => {
+    const updateSize = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setSize({
+          width: Math.floor(rect.width),
+          height: Math.floor(rect.height),
+        });
+      }
+    };
+
+    updateSize();
+    window.addEventListener('resize', updateSize);
+
+    const observer = new ResizeObserver(updateSize);
+    if (containerRef.current) observer.observe(containerRef.current);
+
+    return () => {
+      window.removeEventListener('resize', updateSize);
+      observer.disconnect();
+    };
+  }, []);
+
   useEffect(() => {
     const updateLines = () => setLines(yLines.toArray());
     const updateShapes = () => setShapes(yShapes.toArray());
@@ -85,7 +111,7 @@ export default function Whiteboard({ doc, awareness, user }) {
         id: currentId.current,
         tool,
         points: [pos.x, pos.y],
-        stroke: tool === 'eraser' ? '#0f172a' : color,
+        stroke: tool === 'eraser' ? '#09090B' : color,
         strokeWidth: tool === 'eraser' ? strokeWidth * 3 : strokeWidth,
       };
       yLines.push([newLine]);
@@ -149,20 +175,11 @@ export default function Whiteboard({ doc, awareness, user }) {
         <span className="panel-badge">Konva + Yjs</span>
       </div>
 
-      <Toolbar
-        tool={tool}
-        setTool={setTool}
-        color={color}
-        setColor={setColor}
-        strokeWidth={strokeWidth}
-        setStrokeWidth={setStrokeWidth}
-        onClear={handleClear}
-      />
-
-      <div className="canvas-container">
+      {/* Positioning context for the floating toolbar */}
+      <div className="canvas-container" ref={containerRef}>
         <Stage
-          width={window.innerWidth / 2 - 20}
-          height={window.innerHeight - 160}
+          width={size.width}
+          height={size.height}
           onMouseDown={handleMouseDown}
           onMousemove={handleMouseMove}
           onMouseup={handleMouseUp}
@@ -231,6 +248,17 @@ export default function Whiteboard({ doc, awareness, user }) {
             ))}
           </Layer>
         </Stage>
+
+        {/* Floating toolbar – bottom center of the whiteboard */}
+        <Toolbar
+          tool={tool}
+          setTool={setTool}
+          color={color}
+          setColor={setColor}
+          strokeWidth={strokeWidth}
+          setStrokeWidth={setStrokeWidth}
+          onClear={handleClear}
+        />
       </div>
     </div>
   );

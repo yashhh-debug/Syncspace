@@ -12,6 +12,7 @@
     "@monaco-editor/react": "^4.7.0",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
+    "all": "^0.0.0",
     "axios": "^1.18.1",
     "framer-motion": "^12.43.0",
     "konva": "^9.3.16",
