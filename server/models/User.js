@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const activitySchema = new mongoose.Schema({
   date: { type: String, required: true }, // "2026-07-28"
+  count: { type: Number, default: 1 },
 });
 
 const userSchema = new mongoose.Schema(

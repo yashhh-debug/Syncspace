@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { Sun, Moon, Monitor } from 'lucide-react';
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -10,6 +12,7 @@ export default function Register() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
+  const { themeMode, setThemeMode } = useTheme();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -30,6 +33,32 @@ export default function Register() {
 
   return (
     <div className="login-screen">
+      <div className="auth-theme-toggle">
+        <div className="theme-toggle-group">
+          <button
+            className={`btn-theme ${themeMode === 'light' ? 'active' : ''}`}
+            onClick={() => setThemeMode('light')}
+            title="Light Mode"
+          >
+            <Sun size={13} />
+          </button>
+          <button
+            className={`btn-theme ${themeMode === 'dark' ? 'active' : ''}`}
+            onClick={() => setThemeMode('dark')}
+            title="Dark Mode"
+          >
+            <Moon size={13} />
+          </button>
+          <button
+            className={`btn-theme ${themeMode === 'system' ? 'active' : ''}`}
+            onClick={() => setThemeMode('system')}
+            title="System Theme"
+          >
+            <Monitor size={13} />
+          </button>
+        </div>
+      </div>
+
       <div className="login-card">
         <div className="login-header">
           <div className="logo-big">⚡ SyncSpace</div>

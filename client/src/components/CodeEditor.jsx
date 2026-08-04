@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import * as monaco from 'monaco-editor';
 import { Play, Save, Upload, ChevronDown } from 'lucide-react';
-import monaco from '../monacoSetup';
+import 'monaco-editor/min/vs/editor/editor.main.css';
 import { MonacoBinding } from 'y-monaco';
+import { useTheme } from '../context/ThemeContext';
 
 const LANGUAGES = [
   { id: 'javascript', label: 'JavaScript', monaco: 'javascript', piston: 'javascript' },
@@ -14,6 +16,7 @@ const LANGUAGES = [
   { id: 'c', label: 'C', monaco: 'c', piston: 'c' },
 ];
 
+// Piston language versions (latest stable)
 const PISTON_VERSIONS = {
   javascript: '18.15.0',
   typescript: '5.0.3',
@@ -34,13 +37,15 @@ export default function CodeEditor({ doc, roomId }) {
   const [output, setOutput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
 
+  const { resolvedTheme } = useTheme();
+
   useEffect(() => {
     if (!doc || !containerRef.current) return;
 
     const editor = monaco.editor.create(containerRef.current, {
       value: '',
       language: 'javascript',
-      theme: 'vs-dark',
+      theme: resolvedTheme === 'dark' ? 'vs-dark' : 'vs',
       automaticLayout: true,
       minimap: { enabled: false },
       fontSize: 14,
@@ -67,14 +72,43 @@ export default function CodeEditor({ doc, roomId }) {
     };
   }, [doc]);
 
+  // Sync Monaco editor theme when global resolvedTheme changes
+  useEffect(() => {
+    monaco.editor.setTheme(resolvedTheme === 'dark' ? 'vs-dark' : 'vs');
+  }, [resolvedTheme]);
+
+  // Sync Monaco syntax highlighting when language state updates
   useEffect(() => {
     if (editorRef.current) {
+      const selectedLang = LANGUAGES.find((l) => l.id === language);
       const model = editorRef.current.getModel();
-      monaco.editor.setModelLanguage(model, language);
+      if (model && selectedLang) {
+        monaco.editor.setModelLanguage(model, selectedLang.monaco);
+      }
     }
   }, [language]);
 
-  // ---------- REAL MULTI-LANGUAGE RUN ----------
+  const handleLanguageChange = (newLangId) => {
+    setLanguage(newLangId);
+    const langObj = LANGUAGES.find((l) => l.id === newLangId);
+    if (!langObj || !editorRef.current) return;
+
+    const currentCode = editorRef.current.getValue().trim();
+    // If editor is empty, automatically load starter code template for the chosen language
+    if (!currentCode) {
+      editorRef.current.setValue(langObj.defaultCode);
+    }
+  };
+
+  const handleLoadTemplate = () => {
+    const langObj = LANGUAGES.find((l) => l.id === language);
+    if (langObj && editorRef.current) {
+      editorRef.current.setValue(langObj.defaultCode);
+      setOutput(`✨ Loaded starter template for ${langObj.label}`);
+    }
+  };
+
+  // ---------- MULTI-LANGUAGE RUNNER ----------
   const handleRun = async () => {
     const code = editorRef.current?.getValue() || '';
     if (!code.trim()) {
@@ -82,11 +116,12 @@ export default function CodeEditor({ doc, roomId }) {
       return;
     }
 
+    const currentLangObj = LANGUAGES.find((l) => l.id === language) || LANGUAGES[0];
     setIsRunning(true);
-    setOutput('⏳ Running...\n');
+    setOutput(`⏳ Compiling & Running ${currentLangObj.label}...\n`);
 
     try {
-      // Client-side JavaScript / TypeScript
+      // Client-side JavaScript / TypeScript (instant)
       if (language === 'javascript' || language === 'typescript') {
         const logs = [];
         const originalLog = console.log;
@@ -100,51 +135,81 @@ export default function CodeEditor({ doc, roomId }) {
           const result = new Function(code)();
           if (result !== undefined) logs.push(String(result));
         } catch (err) {
-          logs.push('❌ ' + err.message);
+          logs.push('❌ Runtime Error: ' + err.message);
         }
 
         console.log = originalLog;
         console.error = originalError;
 
-        setOutput(logs.join('\n') || '(no output)');
+        setOutput(logs.join('\n') || '(code executed successfully with no output)');
         return;
       }
 
-      // All other languages → Piston API
-      const pistonLang = LANGUAGES.find((l) => l.id === language)?.piston || language;
-      const version = PISTON_VERSIONS[pistonLang] || '*';
+      // 2. All other languages (Python, C++, Java, Go, Rust, C, TypeScript) -> Piston Execution Engine
+      let data = null;
 
-      const response = await fetch('https://emkc.org/api/v2/piston/execute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          language: pistonLang,
-          version,
-          files: [{ content: code }],
-        }),
-      });
+      // Try server proxy endpoint first
+      try {
+        const proxyRes = await fetch('http://localhost:5000/api/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            language: currentLangObj.piston,
+            code,
+            fileName: currentLangObj.fileName,
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error(`Piston API error: ${response.status}`);
+        if (proxyRes.ok) {
+          data = await proxyRes.json();
+        }
+      } catch (proxyErr) {
+        console.warn('Backend proxy unreachable, falling back to direct Piston API call:', proxyErr);
       }
 
-      const data = await response.json();
+      // Direct Piston API fallback if server proxy unavailable
+      if (!data) {
+        const pistonRes = await fetch('https://emkc.org/api/v2/piston/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            language: currentLangObj.piston,
+            version: '*',
+            files: [{ name: currentLangObj.fileName, content: code }],
+          }),
+        });
+
+        if (!pistonRes.ok) {
+          throw new Error(`Execution service error (Status ${pistonRes.status})`);
+        }
+
+        data = await pistonRes.json();
+      }
 
       let result = '';
 
-      if (data.run?.stdout) result += data.run.stdout;
-      if (data.run?.stderr) result += (result ? '\n' : '') + '❌ ' + data.run.stderr;
-      if (data.compile?.stderr) result += (result ? '\n' : '') + 'Compile Error:\n' + data.compile.stderr;
+      if (data.compile?.stderr) {
+        result += '❌ Compilation Error:\n' + data.compile.stderr + '\n\n';
+      }
+
+      if (data.run?.stdout) {
+        result += data.run.stdout;
+      }
+
+      if (data.run?.stderr) {
+        result += (result ? '\n' : '') + '❌ Runtime Error:\n' + data.run.stderr;
+      }
 
       if (!result.trim()) result = '(no output)';
 
+      // Show exit code if non-zero
       if (data.run?.code !== 0 && data.run?.code !== undefined) {
         result += `\n\nProcess exited with code ${data.run.code}`;
       }
 
       setOutput(result);
     } catch (err) {
-      setOutput('❌ Failed to run code:\n' + err.message + '\n\n(Make sure you have internet connection)');
+      setOutput(`❌ Execution Failed:\n${err.message}\n\nPlease check your internet connection.`);
     } finally {
       setIsRunning(false);
     }
@@ -172,42 +237,37 @@ export default function CodeEditor({ doc, roomId }) {
       const data = JSON.parse(raw);
       editorRef.current?.setValue(data.code || '');
       setLanguage(data.language || 'javascript');
-      setOutput(`📂 Loaded from ${new Date(data.savedAt).toLocaleString()}`);
+      setOutput(`📂 Loaded saved code from ${new Date(data.savedAt).toLocaleString()}`);
     } catch {
       setOutput('Failed to load saved file.');
     }
   };
 
   return (
-    <div className="panel editor-panel">
+    <div className="panel editor-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       <div className="panel-header">
         <span>Code Editor</span>
-        <span className="panel-badge">Monaco + Yjs</span>
+        <span className="panel-badge">Monaco Multi-Lang</span>
       </div>
 
       {/* Premium toolbar */}
       <div className="editor-toolbar">
-        <div className="relative">
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            className="lang-select"
-          >
-            {LANGUAGES.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div style={{ flex: 1 }} />
+        <select
+          value={language}
+          onChange={(e) => setLanguage(e.target.value)}
+          className="lang-select"
+        >
+          {LANGUAGES.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.label}
+            </option>
+          ))}
+        </select>
 
         <button className="btn-secondary" onClick={handleLoad}>
           <Upload size={14} style={{ marginRight: 6 }} />
           Load
         </button>
-
         <button className="btn-secondary" onClick={handleSave}>
           <Save size={14} style={{ marginRight: 6 }} />
           Save
@@ -233,25 +293,8 @@ export default function CodeEditor({ doc, roomId }) {
 
       {/* VS-Code style Output Console */}
       <div className="output-panel">
-        <div className="output-header">
-          <span>Output</span>
-          <button
-            onClick={() => setOutput('')}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-secondary)',
-              fontSize: '0.7rem',
-              cursor: 'pointer',
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            Clear
-          </button>
-        </div>
-        <pre className="output-content">
-          {output || '// output will appear here'}
-        </pre>
+        <div className="output-header">Output</div>
+        <pre className="output-content">{output || '// output will appear here'}</pre>
       </div>
     </div>
   );

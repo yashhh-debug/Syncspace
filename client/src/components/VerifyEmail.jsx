@@ -16,7 +16,7 @@ export default function VerifyEmail() {
     }
 
     axios
-      .get(`http://localhost:1234/api/auth/verify-email?token=${token}`)
+      .get(`http://localhost:5000/api/auth/verify-email?token=${token}`)
       .then((res) => {
         setStatus('success');
         setMessage(res.data.message);

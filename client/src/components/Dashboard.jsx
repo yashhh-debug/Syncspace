@@ -1,141 +1,150 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import {
-  Hash,
-  Calendar,
-  ArrowRight,
-  DoorOpen,
-  FolderKanban,
-  Settings,
-} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { Sun, Moon, Monitor } from 'lucide-react';
 import Heatmap from './Heatmap';
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, logout, recordActivity } = useAuth();
+  const { themeMode, setThemeMode } = useTheme();
   const navigate = useNavigate();
-  const [roomId, setRoomId] = useState('');
+  const [joinInput, setJoinInput] = useState('');
 
-  const handleJoin = () => {
-    if (roomId.trim()) {
-      navigate(`/room/${roomId.trim()}`);
+  const handleCreateRoom = () => {
+    const newRoomId = `sync-${Math.random().toString(36).substring(2, 9)}`;
+    recordActivity();
+    navigate(`/room/${newRoomId}`);
+  };
+
+  const handleJoinRoom = () => {
+    if (!joinInput.trim()) return;
+    let cleanId = joinInput.trim();
+    if (cleanId.includes('/room/')) {
+      cleanId = cleanId.split('/room/')[1].split('?')[0].split('#')[0];
+    }
+    if (cleanId) {
+      recordActivity();
+      navigate(`/room/${cleanId}`);
     }
   };
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className="loading-screen">
+        <div className="spinner" />
+        <p>Loading user profile...</p>
+      </div>
+    );
+  }
+
+  const name = user.name || 'User';
+  const email = user.email || 'No email provided';
 
   return (
-    <div className="dashboard-content">
-      {/* Profile card */}
-      <motion.div
-        className="profile-card"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <div className="avatar">
-          {user.name.charAt(0).toUpperCase()}
+    <div className="dashboard">
+      <header className="header">
+        <div className="logo">
+          <span className="logo-icon">⚡</span>
+          <h1>SyncSpace</h1>
         </div>
-        <h2>{user.name}</h2>
-        <p className="email">{user.email}</p>
-
-        <div className="stats-grid">
-          <div className="stat">
-            <div className="stat-value">{user.streak}</div>
-            <div className="stat-label">Current Streak</div>
-          </div>
-          <div className="stat">
-            <div className="stat-value">{user.maxStreak}</div>
-            <div className="stat-label">Max Streak</div>
-          </div>
-          <div className="stat">
-            <div className="stat-value">{user.totalActiveDays}</div>
-            <div className="stat-label">Active Days</div>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Right column */}
-      <div className="right-column">
-        <motion.div
-          className="join-card"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-        >
-          <div className="card-header-row">
-            <div>
-              <h3>Join / Create Room</h3>
-              <p className="card-sub">Enter a room ID to start collaborating</p>
-            </div>
-            <div className="card-icon">
-              <Hash size={18} />
-            </div>
-          </div>
-
-          <div className="join-form">
-            <input
-              value={roomId}
-              onChange={(e) => setRoomId(e.target.value)}
-              placeholder="e.g. room1 or team-alpha"
-              onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-            />
-            <button className="btn-primary" onClick={handleJoin}>
-              Join Room
-              <ArrowRight size={16} />
+        <div className="header-right">
+          {/* Light, Dark, System Theme Switcher */}
+          <div className="theme-toggle-group">
+            <button
+              className={`btn-theme ${themeMode === 'light' ? 'active' : ''}`}
+              onClick={() => setThemeMode('light')}
+              title="Light Mode"
+            >
+              <Sun size={13} />
+            </button>
+            <button
+              className={`btn-theme ${themeMode === 'dark' ? 'active' : ''}`}
+              onClick={() => setThemeMode('dark')}
+              title="Dark Mode"
+            >
+              <Moon size={13} />
+            </button>
+            <button
+              className={`btn-theme ${themeMode === 'system' ? 'active' : ''}`}
+              onClick={() => setThemeMode('system')}
+              title="System Theme"
+            >
+              <Monitor size={13} />
             </button>
           </div>
-        </motion.div>
 
-        <motion.div
-          className="heatmap-card"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <div className="card-header-row">
-            <div>
-              <h3>Activity</h3>
-              <p className="heatmap-sub">
-                {user.totalActiveDays} active days · Max streak {user.maxStreak}
-              </p>
+          <span className="streak-badge">🔥 {user.streak || 0} day streak</span>
+          <span className="user-info">Hi, <strong>{name}</strong></span>
+          <button className="btn-ghost" onClick={logout}>Logout</button>
+        </div>
+      </header>
+
+      <div className="dashboard-content">
+        {/* Profile Card */}
+        <div className="profile-card">
+          <div className="avatar">{name.charAt(0).toUpperCase()}</div>
+          <h2>{name}</h2>
+          <p className="email">{email}</p>
+
+          <div className="stats-grid">
+            <div className="stat">
+              <div className="stat-value">{user.streak || 0}</div>
+              <div className="stat-label">Current Streak</div>
             </div>
-            <div className="card-icon">
-              <Calendar size={18} />
+            <div className="stat">
+              <div className="stat-value">{user.maxStreak || 0}</div>
+              <div className="stat-label">Max Streak</div>
+            </div>
+            <div className="stat">
+              <div className="stat-value">{user.totalActiveDays || 0}</div>
+              <div className="stat-label">Active Days</div>
             </div>
           </div>
-          <Heatmap activity={user.activity || []} />
-        </motion.div>
+        </div>
 
-        {/* Quick actions */}
-        <div className="quick-actions">
-          <button className="quick-card" onClick={() => navigate('/rooms')}>
-            <div className="quick-icon">
-              <DoorOpen size={18} />
+        {/* Room Actions Grid */}
+        <div className="room-actions-grid">
+          {/* Create Room Card */}
+          <div className="room-card create-card">
+            <div className="room-card-icon">⚡</div>
+            <div className="room-card-content">
+              <h3>Create New Room</h3>
+              <p>Start a new collaborative workspace with whiteboard and live code editor.</p>
+              <button className="btn-primary create-btn" onClick={handleCreateRoom}>
+                🚀 Create Room
+              </button>
             </div>
-            <div>
-              <div className="quick-title">Rooms</div>
-              <div className="quick-desc">Your recent rooms</div>
+          </div>
+
+          {/* Join Room Card */}
+          <div className="room-card join-card">
+            <div className="room-card-icon">🔗</div>
+            <div className="room-card-content">
+              <h3>Join Existing Room</h3>
+              <p>Enter a Room ID or paste a shareable invite link from a teammate.</p>
+              <div className="join-form">
+                <input
+                  value={joinInput}
+                  onChange={(e) => setJoinInput(e.target.value)}
+                  placeholder="Paste Room ID or URL (e.g. sync-a7x9k2)"
+                  onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
+                />
+                <button className="btn-secondary" onClick={handleJoinRoom}>
+                  Join Room
+                </button>
+              </div>
             </div>
-          </button>
-          <button className="quick-card" onClick={() => navigate('/projects')}>
-            <div className="quick-icon">
-              <FolderKanban size={18} />
-            </div>
-            <div>
-              <div className="quick-title">Projects</div>
-              <div className="quick-desc">Saved projects</div>
-            </div>
-          </button>
-          <button className="quick-card" onClick={() => navigate('/settings')}>
-            <div className="quick-icon">
-              <Settings size={18} />
-            </div>
-            <div>
-              <div className="quick-title">Settings</div>
-              <div className="quick-desc">Preferences</div>
-            </div>
-          </button>
+          </div>
+        </div>
+
+        {/* Heatmap */}
+        <div className="heatmap-card">
+          <Heatmap
+            activity={user.activity || []}
+            activeDays={user.totalActiveDays || 0}
+            maxStreak={user.maxStreak || 0}
+          />
         </div>
       </div>
     </div>
