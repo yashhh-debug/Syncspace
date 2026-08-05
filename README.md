@@ -269,3 +269,6 @@ This project is developed for educational and academic purposes.
 # ⭐ Support
 
 If you found this project helpful, consider giving it a ⭐ on GitHub.
+
+## Latest Update
+- Improved authentication context handling
