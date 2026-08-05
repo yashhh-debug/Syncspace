@@ -273,3 +273,8 @@ If you found this project helpful, consider giving it a ⭐ on GitHub.
 ## Latest Update
 - Improved authentication context handling
 ## SyncSpace Project Update
+## Features
+- Real-time collaboration
+- User authentication
+- WebSocket communication
+- Code editor support
