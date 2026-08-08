@@ -247,7 +247,7 @@ wss.on('connection', (conn, req) => {
 });
 
 // ===== Start server (always) + MongoDB =====
-const PORT = process.env.PORT || 1234;
+const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
   console.log(`🚀 SyncSpace server running on http://localhost:${PORT}`);
